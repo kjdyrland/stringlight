@@ -1,0 +1,55 @@
+{
+  "name": "@kjdyrland/stringlight",
+  "version": "0.1.0",
+  "description": "Private localization preflight for Apple String Catalogs and locale JSON files",
+  "type": "module",
+  "license": "MIT",
+  "author": "Kjetil Dyrland",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kjdyrland/stringlight.git"
+  },
+  "homepage": "https://github.com/kjdyrland/stringlight#readme",
+  "bugs": {
+    "url": "https://github.com/kjdyrland/stringlight/issues"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "main": "./src/audit.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/audit.js",
+      "default": "./src/audit.js"
+    }
+  },
+  "bin": {
+    "stringlight": "scripts/audit.mjs"
+  },
+  "files": [
+    "src/audit.js",
+    "src/index.d.ts",
+    "scripts/audit.mjs",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "examples/",
+    "docs/API.md"
+  ],
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "node --test tests/*.test.js",
+    "verify:package": "node scripts/verify-package.mjs"
+  },
+  "devDependencies": {
+    "lucide-react": "^0.468.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
+  }
+}

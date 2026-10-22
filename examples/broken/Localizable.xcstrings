@@ -1,0 +1,17 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "Hello %@": {
+      "localizations": {
+        "nb": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hei venn"
+          }
+        }
+      }
+    },
+    "Save trip": {}
+  },
+  "version": "1.0"
+}

@@ -38,6 +38,9 @@ try {
   const cli = join(installed, 'scripts', 'audit.mjs');
   const clean = JSON.parse(run(process.execPath, [cli, join(installed, 'examples/apple/Localizable.xcstrings'), '--target', 'nb', '--target', 'es', '--fail-on', 'warning'], consumer));
   assert.equal(clean.summary.errors, 0);
+  const phrases = JSON.parse(run(process.execPath, [cli, join(installed, 'examples/apple/AppShortcuts.xcstrings'), '--target', 'nb', '--fail-on', 'warning'], consumer));
+  assert.equal(phrases.summary.errors, 0);
+  assert.equal(phrases.summary.warnings, 0);
   const broken = JSON.parse(run(process.execPath, [cli, join(installed, 'examples/broken/Localizable.xcstrings'), '--target', 'nb'], consumer, 1));
   assert.ok(broken.issues.some(issue => issue.type === 'placeholder'));
   assert.ok(broken.issues.some(issue => issue.type === 'missing'));
@@ -54,6 +57,18 @@ try {
     const revised = updateTranslation(files,report.issues.find(i=>i.type==='placeholder'),'Hei {name}');
     assert.equal(auditFiles(revised).summary.errors,0);
     assert.equal(revised[0].text,files[0].text);
+    const sets = [{name:'AppShortcuts.xcstrings',text:JSON.stringify({sourceLanguage:'en',version:'1.1',strings:{
+      'Inspect \${applicationName}':{localizations:{
+        en:{stringSet:{state:'translated',values:['Inspect \${applicationName}']}},
+        nb:{stringSet:{state:'needs_review',values:['Se i appen','Undersøk \${applicationName}']}}
+      }}
+    }})}];
+    const phraseIssue=auditFiles(sets).issues.find(issue=>issue.type==='placeholder');
+    const repairedSets=updateTranslation(sets,phraseIssue,'Se i \${applicationName}');
+    const repairedSet=JSON.parse(repairedSets[0].text).strings['Inspect \${applicationName}'].localizations.nb.stringSet;
+    assert.deepEqual(repairedSet.values,['Se i \${applicationName}','Undersøk \${applicationName}']);
+    assert.equal(repairedSet.state,'needs_review');
+    assert.equal(auditFiles(repairedSets).summary.errors,0);
   `], consumer);
 
   await writeFile(join(consumer, 'consumer.mts'), `
@@ -66,7 +81,7 @@ try {
     console.log(parsed, report.summary.errors);
   `);
   run(process.execPath, [join(root, 'node_modules/typescript/bin/tsc'), '--noEmit', '--strict', '--target', 'ES2022', '--module', 'NodeNext', '--moduleResolution', 'NodeNext', join(consumer, 'consumer.mts')], consumer);
-  console.log(`Verified ${manifest.name}@${manifest.version}: fresh offline install, executable CLI, clean/broken examples, ESM imports, safe repairs, and TypeScript declarations.`);
+  console.log(`Verified ${manifest.name}@${manifest.version}: fresh offline install, executable CLI, clean/broken/phrase-set examples, ESM imports, safe repairs, and TypeScript declarations.`);
 } finally {
   await rm(temporary, { recursive: true, force: true });
 }

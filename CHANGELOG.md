@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.1 — 2026-10-25
+
+### Fixed
+
+- Read Apple App Shortcut `stringSet.values` alternatives instead of reporting valid translated phrase sets as missing.
+- Check every phrase's text, placeholders and shared translation state without requiring matching phrase counts or array order between languages.
+- Distinguish `${name}` markers from `{name}` so lost App Shortcut dollar signs cannot pass placeholder checks.
+- Repair existing phrase-array elements while preserving siblings and metadata. Editing one phrase in a multi-phrase set retains its shared review state; absent or malformed sets remain manual repairs.
+
+### Verification
+
+Synthetic phrase-set regressions and a packed-package fresh-consumer check cover different phrase counts, source argument alternatives, precise repair paths, state preservation and malformed input. Private application catalogs are never included in the package or fixtures.
+
 ## 0.1.0 — 2026-10-22
 
 First public release of Stringlight, a local localization review tool in an established category.

@@ -1,0 +1,23 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "Inspect ${applicationName}": {
+      "comment": "Synthetic phrase alternatives; localized counts may differ.",
+      "localizations": {
+        "en": {
+          "stringSet": {
+            "state": "translated",
+            "values": ["Inspect ${applicationName}", "Inspect ${item} in ${applicationName}"]
+          }
+        },
+        "nb": {
+          "stringSet": {
+            "state": "translated",
+            "values": ["Undersøk ${item} i ${applicationName}", "Se i ${applicationName}", "Undersøk med ${applicationName}"]
+          }
+        }
+      }
+    }
+  },
+  "version": "1.1"
+}

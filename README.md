@@ -10,10 +10,10 @@ Stringlight is a new implementation in an established category. Its focus is a r
 
 ## Install in a project
 
-Version **0.1.0** is distributed from [GitHub](https://github.com/kjdyrland/stringlight). It is **not published to the npm registry**. Install the versioned package asset from GitHub Releases:
+Version **0.1.1** is distributed from [GitHub](https://github.com/kjdyrland/stringlight). It is **not published to the npm registry**. Install the versioned package asset from GitHub Releases:
 
 ```sh
-npm install --save-dev https://github.com/kjdyrland/stringlight/releases/download/v0.1.0/kjdyrland-stringlight-0.1.0.tgz
+npm install --save-dev https://github.com/kjdyrland/stringlight/releases/download/v0.1.1/kjdyrland-stringlight-0.1.1.tgz
 npx stringlight MyApp/Resources/Localizable.xcstrings
 ```
 
@@ -54,6 +54,7 @@ After cloning this repository, try the [clean Apple catalog](examples/apple/Loca
 
 ```sh
 node scripts/audit.mjs examples/apple/Localizable.xcstrings --target nb --target es
+node scripts/audit.mjs examples/apple/AppShortcuts.xcstrings --target nb
 node scripts/audit.mjs examples/json/en.json examples/json/nb.json --source en
 node scripts/audit.mjs examples/broken/Localizable.xcstrings
 ```
@@ -152,7 +153,7 @@ The browser app is a static site. Build it and deploy `dist/` with your preferre
 
 ## Inputs and findings
 
-- **Apple `.xcstrings`:** source text, states, comments, and plural/device leaves are read from the catalog. Source text falls back to the key when its source localization is absent. `shouldTranslate: false` entries are excluded.
+- **Apple `.xcstrings`:** source text, states, comments, plural/device leaves, and App Shortcut `stringSet.values` phrases are read from the catalog. Source text falls back to the key when its source localization is absent. `shouldTranslate: false` entries are excluded.
 - **JSON:** one language per file, named `en.json`, `nb.json`, or `common.es.json`, with flat or nested string values. Audit one namespace at a time. Locale-map bundles and multiple JSON files for the same language are unsupported. Literal dotted keys and nested paths stay distinct.
 
 The browser accepts up to 30 files, 6 MB per file, and 12 MB per workspace. The CLI can audit larger files subject to available memory.
@@ -163,7 +164,8 @@ Errors identify missing/empty translations and incompatible placeholders. Warnin
 
 ### Current limits
 
-- Common Foundation/printf arguments and simple `{name}` / `{{name}}` placeholders are checked. Positional reordering is supported, repeated references are distinguished from distinct arguments, and `%%` is a literal percent sign.
+- Common Foundation/printf arguments and simple `{name}` / `{{name}}` / `${name}` placeholders are checked as distinct syntaxes. Positional reordering is supported, repeated references are distinguished from distinct arguments, and `%%` is a literal percent sign.
+- App Shortcut phrase alternatives may differ in count and order between languages. Each target phrase must preserve an argument signature from a source alternative; source and target array indices are not semantic pairs. Editing one phrase preserves all siblings. For a multi-phrase set, its shared state is preserved until the whole set is reviewed in Xcode; editing a single-phrase set marks it translated. Missing or malformed sets need manual repair.
 - ICU messages and Apple `%#@…@` named substitution formats require manual format review. Device variants, nested axes, substitutions, and unrecognized translation structures are flagged because complete coverage cannot be proved.
 - Basic plural checks require `other`. They do not establish full CLDR category coverage. Fixed plural forms may spell out a numeric count; this is advisory. Missing an entire language for a varied source requires manual repair.
 - JSON arrays, numbers, booleans, and null are preserved but not audited as translations; they are reported as input problems.

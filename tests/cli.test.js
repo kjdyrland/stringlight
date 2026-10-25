@@ -42,6 +42,37 @@ test('CLI fails a missing required target with diagnostic status 1', (t) => {
   assert.equal(report.errors.length, 0);
 });
 
+test('CLI audits phrase alternatives and exposes exact placeholder failures and shared review warnings', (t) => {
+  const data = { sourceLanguage: 'en', version: '1.1', strings: {
+    'Inspect ${applicationName}': { localizations: {
+      en: { stringSet: { state: 'translated', values: ['Inspect ${applicationName}', 'Inspect ${item} in ${applicationName}'] } },
+      nb: { stringSet: { state: 'translated', values: ['Se ${item} i ${applicationName}', 'Se i ${applicationName}', 'Undersøk ${applicationName}'] } },
+    } },
+  } };
+  const directory = fixture(t, { 'AppShortcuts.xcstrings': data });
+  const clean = run(directory, ['AppShortcuts.xcstrings', '--target', 'nb', '--fail-on', 'warning']);
+  assert.equal(clean.status, 0, clean.stderr);
+  assert.deepEqual(JSON.parse(clean.stdout).issues, []);
+
+  data.strings['Inspect ${applicationName}'].localizations.nb.stringSet.values[1] = 'Se i {applicationName}';
+  writeFileSync(join(directory, 'AppShortcuts.xcstrings'), JSON.stringify(data));
+  const before = readFileSync(join(directory, 'AppShortcuts.xcstrings'), 'utf8');
+  const broken = run(directory, ['AppShortcuts.xcstrings', '--target', 'nb']);
+  assert.equal(broken.status, 1, broken.stderr);
+  const mismatch = JSON.parse(broken.stdout).issues.find(issue => issue.type === 'placeholder');
+  assert.deepEqual(mismatch.path, ['strings', 'Inspect ${applicationName}', 'localizations', 'nb', 'stringSet', 'values', '1']);
+  assert.equal(readFileSync(join(directory, 'AppShortcuts.xcstrings'), 'utf8'), before);
+
+  data.strings['Inspect ${applicationName}'].localizations.nb.stringSet.values[1] = 'Se i ${applicationName}';
+  data.strings['Inspect ${applicationName}'].localizations.nb.stringSet.state = 'needs_review';
+  writeFileSync(join(directory, 'AppShortcuts.xcstrings'), JSON.stringify(data));
+  const advisory = run(directory, ['AppShortcuts.xcstrings', '--target', 'nb', '--fail-on', 'error']);
+  assert.equal(advisory.status, 0, advisory.stderr);
+  assert.equal(JSON.parse(advisory.stdout).issues.filter(issue => issue.type === 'review').length, 3);
+  const strict = run(directory, ['AppShortcuts.xcstrings', '--target', 'nb', '--fail-on', 'warning']);
+  assert.equal(strict.status, 1, strict.stderr);
+});
+
 test('CLI does not fail warnings or informational suggestions', (t) => {
   const directory = fixture(t, { 'en.json': { brand: 'Wayfarer', welcome: 'Hello' }, 'fr.json': { brand: 'Wayfarer', welcome: ' Bonjour ' } });
   const result = run(directory, ['en.json', 'fr.json']);

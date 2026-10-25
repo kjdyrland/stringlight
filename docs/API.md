@@ -43,6 +43,8 @@ The report's `coverage` field is the UI's **Strings passing checks** measure. It
 
 Only use findings with `fixable === true`. This function rejects manual-only findings. It returns a new array of file copies and never writes to disk. Existing unknown JSON properties and unrelated string units are retained; serialization may change whitespace. An Apple string unit that is explicitly saved is marked `translated`. A missing JSON locale may create another output file.
 
+App Shortcut phrase sets (`stringSet.values`) produce one translation unit per phrase, identified by `kind: 'string-set'`. Their exact paths end in `['stringSet', 'values', '<index>']`, using a string array index. Phrase counts and order can differ between languages; target alternatives are checked against source argument signatures rather than paired by index. Each phrase carries the set's shared state. Saving a single-phrase set marks it translated. Saving one alternative of a multi-phrase set preserves the shared state, because other phrases may still require review. Missing/malformed sets and invalid state metadata require manual repair; automatic edits never add or remove phrase alternatives.
+
 ```js
 const finding = report.issues.find(issue =>
   issue.type === 'missing' && issue.locale === 'nb' && issue.fixable
@@ -63,7 +65,7 @@ Keep automatic repairs out of unattended release checks. A caller should use a f
 
 ## `placeholders(value)`
 
-Returns `{ tokens: string[], unsupported: boolean }` for common Foundation/printf arguments and simple `{name}` / `{{name}}` placeholders. The two named syntaxes stay distinct. Explicit positional reordering is accepted; `%%` is a literal percent sign. ICU and Apple named substitution formats return `unsupported: true` and require a format-aware review.
+Returns `{ tokens: string[], unsupported: boolean }` for common Foundation/printf arguments and simple `{name}` / `{{name}}` / `${name}` placeholders. The three named syntaxes stay distinct, so removing the dollar sign from an App Shortcut marker is a mismatch. Explicit positional reordering is accepted; `%%` is a literal percent sign. ICU and Apple named substitution formats return `unsupported: true` and require a format-aware review.
 
 ```js
 placeholders('Hello %@, you have %lld messages');

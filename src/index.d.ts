@@ -37,6 +37,8 @@ export interface TranslationUnit {
   /** XCStrings path within a locale, used to pair corresponding variants. */
   relative?: JsonPath;
   invalidState?: boolean;
+  /** A localized App Shortcut phrase alternative; its index is not a source/target pairing. */
+  kind?: 'string-set';
 }
 
 export interface VariantStructure {
@@ -167,7 +169,8 @@ export function auditFiles(files: readonly LocalizationFile[], options?: AuditOp
 
 /**
  * Return copied files with one string value updated, preserving unrelated JSON properties.
- * Missing simple JSON locale files can be created. XCStrings repairs mark the unit translated.
+ * Missing simple JSON locale files can be created. XCStrings string units and single-phrase sets
+ * are marked translated. Editing one alternative in a multi-phrase set preserves its shared state.
  * Manual-only findings (fixable: false), invalid paths and conflicting non-string data throw.
  * Output is reserialized JSON; review the source-control diff before replacing original files.
  */

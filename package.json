@@ -1,6 +1,6 @@
 {
   "name": "@kjdyrland/stringlight",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Private localization preflight for Apple String Catalogs and locale JSON files",
   "type": "module",
   "license": "MIT",

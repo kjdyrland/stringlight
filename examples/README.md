@@ -6,6 +6,9 @@ From a source checkout:
 # Clean Apple catalog, including simple plural forms; exits 0.
 node scripts/audit.mjs examples/apple/Localizable.xcstrings --target nb --target es
 
+# App Shortcut phrases with different alternative counts; exits 0.
+node scripts/audit.mjs examples/apple/AppShortcuts.xcstrings --target nb
+
 # Clean nested JSON translations; exits 0.
 node scripts/audit.mjs examples/json/en.json examples/json/nb.json --source en
 

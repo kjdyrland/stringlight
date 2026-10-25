@@ -32,8 +32,17 @@ function stringUnits(value, path = [], relative = [], result = []) {
       invalidState: own(value.stringUnit, 'state') && typeof value.stringUnit.state !== 'string', value: value.stringUnit.value,
     });
   }
+  if (object(value.stringSet) && Array.isArray(value.stringSet.values) && value.stringSet.values.every((phrase) => typeof phrase === 'string')) {
+    const set = value.stringSet;
+    set.values.forEach((phrase, index) => result.push({
+      path: [...path, 'stringSet', 'values', String(index)], relative: [...relative, 'stringSet', 'values', String(index)],
+      label: [...relative.filter((part) => !['variations', 'substitutions'].includes(part)), `Phrase ${index + 1}`].join(' · '),
+      state: typeof set.state === 'string' ? set.state : own(set, 'state') ? 'unknown' : 'new',
+      invalidState: own(set, 'state') && typeof set.state !== 'string', value: phrase, kind: 'string-set',
+    }));
+  }
   for (const [key, child] of Object.entries(value)) {
-    if (key !== 'stringUnit' && object(child)) stringUnits(child, [...path, key], [...relative, key], result);
+    if (!['stringUnit', 'stringSet'].includes(key) && object(child)) stringUnits(child, [...path, key], [...relative, key], result);
   }
   return result;
 }
@@ -66,7 +75,8 @@ export function placeholders(value) {
   const unsupported = /\{[^{}]*,\s*(?:plural|select|selectordinal|number|date|time)\b/i.test(text) || /\{\{[^{}]*,[^{}]*\}\}/.test(text) || /%#@[^@]+@/.test(text);
   const tokens = printfTokens(text);
   if (!unsupported) {
-    const consumed = text.replace(/\{\{\s*([A-Za-z_][\w.-]*)\s*\}\}/g, (_, name) => { tokens.push(`mustache:${name}`); return ''; });
+    const consumed = text.replace(/\{\{\s*([A-Za-z_][\w.-]*)\s*\}\}/g, (_, name) => { tokens.push(`mustache:${name}`); return ''; })
+      .replace(/\$\{\s*([A-Za-z_][\w.-]*)\s*\}/g, (_, name) => { tokens.push(`dollar:${name}`); return ''; });
     for (const match of consumed.matchAll(/(?<!\{)\{\s*([A-Za-z_][\w.-]*)\s*\}(?!\})/g)) tokens.push(`named:${match[1]}`);
   }
   return { tokens: [...new Set(tokens)].sort(), unsupported };
@@ -74,6 +84,13 @@ export function placeholders(value) {
 
 function sourceForLeaf(entry, leaf) {
   const variants = entry.sourceVariants || [];
+  if (leaf.kind === 'string-set') {
+    const prefix = JSON.stringify(leaf.relative.slice(0, -3));
+    const alternatives = variants.filter((source) => source.kind === 'string-set' && JSON.stringify(source.relative.slice(0, -3)) === prefix);
+    const signature = JSON.stringify(placeholders(leaf.value).tokens);
+    const matching = alternatives.filter((source) => JSON.stringify(placeholders(source.value).tokens) === signature);
+    return matching.find((source) => source.value === leaf.value)?.value ?? matching[0]?.value ?? alternatives[0]?.value ?? entry.source;
+  }
   const exact = variants.find((source) => JSON.stringify(source.relative) === JSON.stringify(leaf.relative));
   if (exact) return exact.value;
   if (leaf.relative?.includes('plural')) {
@@ -86,12 +103,13 @@ function sourceForLeaf(entry, leaf) {
 }
 
 function hasStringStructure(value) {
-  return object(value) && (['stringUnit', 'variations', 'substitutions'].some((key) => own(value, key)) || Object.values(value).some(hasStringStructure));
+  return object(value) && (['stringUnit', 'stringSet', 'variations', 'substitutions'].some((key) => own(value, key)) || Object.values(value).some(hasStringStructure));
 }
 
 function inspectStructure(value, result = { substitutions: false, nested: false, devices: false, unknown: false, missingOther: [] }, path = [], depth = 0) {
   if (!object(value)) return result;
   if (own(value, 'substitutions')) result.substitutions = true;
+  if (own(value, 'stringSet') && (!object(value.stringSet) || !Array.isArray(value.stringSet.values) || !value.stringSet.values.length || value.stringSet.values.some((phrase) => typeof phrase !== 'string'))) result.unknown = true;
   for (const [key, child] of Object.entries(value)) {
     if (key === 'variations' && object(child)) {
       if (depth > 0) result.nested = true;
@@ -102,7 +120,7 @@ function inspectStructure(value, result = { substitutions: false, nested: false,
         inspectStructure(branches, result, [...path, key, axis], depth + 1);
       }
     } else if (object(child)) {
-      if (!['stringUnit', 'substitutions', 'zero', 'one', 'two', 'few', 'many', 'other', 'iphone', 'ipad', 'ipod', 'mac', 'watch', 'appletv', 'applevision', 'vision'].includes(key) && hasStringStructure(child)) result.unknown = true;
+      if (!['stringUnit', 'stringSet', 'substitutions', 'zero', 'one', 'two', 'few', 'many', 'other', 'iphone', 'ipad', 'ipod', 'mac', 'watch', 'appletv', 'applevision', 'vision'].includes(key) && hasStringStructure(child)) result.unknown = true;
       inspectStructure(child, result, [...path, key], depth);
     }
   }
@@ -256,7 +274,7 @@ export function auditFiles(inputFiles, options = {}) {
           if (!leaf.value.trim()) addIssue(entry, code, 'empty', 'error', 'Empty translation', 'This translation is empty or contains only whitespace.', leaf, issueDestination);
           if (entry.format === 'xcstrings' && leaf.state !== 'translated') {
             const label = leaf.state === 'machine_translated' ? 'Machine translation needs review' : leaf.state === 'needs_review' ? 'Translation needs review' : 'Translation is not marked complete';
-            addIssue(entry, code, 'review', 'warning', label, leaf.invalidState ? 'The string-unit state is not text. Repair this metadata in Xcode.' : `Xcode state: ${String(leaf.state).replaceAll('_', ' ')}. Review the text and mark this string translated.`, leaf, { ...issueDestination, fixable: !leaf.invalidState });
+            addIssue(entry, code, 'review', 'warning', label, leaf.invalidState ? 'The translation state is not text. Repair this metadata in Xcode.' : `Xcode state: ${String(leaf.state).replaceAll('_', ' ')}. Review the text and mark this ${leaf.kind === 'string-set' ? 'phrase set' : 'string'} translated.`, leaf, { ...issueDestination, fixable: !leaf.invalidState });
           }
           const sourcePlaceholders = placeholders(source);
           const targetPlaceholders = placeholders(leaf.value);
@@ -334,11 +352,22 @@ export function updateTranslation(inputFiles, target, value) {
   const path = target.path || (isCatalog && target.key && target.locale ? ['strings', target.key, 'localizations', target.locale, 'stringUnit', 'value'] : null);
   if (!Array.isArray(path) || !path.length || path.some((part) => typeof part !== 'string')) throw new Error('This finding needs a manual edit; it has no editable string path.');
   if (!object(data)) throw new Error('The target file must contain a JSON object.');
-  setPath(data, path, value);
-  if (isCatalog) {
-    if (path.at(-1) !== 'value' || path.at(-2) !== 'stringUnit') throw new Error('Only String Catalog string units can be repaired here.');
+  if (isCatalog && path.at(-3) === 'stringSet' && path.at(-2) === 'values' && /^(?:0|[1-9]\d*)$/.test(path.at(-1))) {
+    let set = data;
+    for (const key of path.slice(0, -2)) {
+      if (!object(set) || !own(set, key)) throw new Error('The phrase set was not found. Re-audit the catalog before editing.');
+      set = set[key];
+    }
+    const index = Number(path.at(-1));
+    if (!object(set) || !Array.isArray(set.values) || !set.values.every((phrase) => typeof phrase === 'string') || !Number.isSafeInteger(index) || index >= set.values.length) throw new Error('The phrase path does not identify an existing string. Edit this phrase set manually.');
+    if (own(set, 'state') && typeof set.state !== 'string') throw new Error('The phrase-set state needs a manual metadata edit.');
+    set.values[index] = value;
+    if (set.values.length === 1) set.state = 'translated';
+  } else if (isCatalog) {
+    if (path.at(-1) !== 'value' || path.at(-2) !== 'stringUnit') throw new Error('Only String Catalog string units and existing phrase-set values can be repaired here.');
+    setPath(data, path, value);
     setPath(data, [...path.slice(0, -1), 'state'], 'translated');
-  }
+  } else setPath(data, path, value);
   const indent = /\n([\t ]+)"/.exec(file.text)?.[1] || '  ';
   file.text = JSON.stringify(data, null, indent) + '\n';
   return files;

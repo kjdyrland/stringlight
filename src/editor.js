@@ -1,3 +1,5 @@
+import { placeholders } from './audit.js';
+
 function samePath(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
@@ -12,6 +14,13 @@ function jsonDestination(entry, locale) {
 
 function variantSource(entry, unit) {
   if (!unit?.relative) return entry.source;
+  if (unit.kind === 'string-set') {
+    const prefix = JSON.stringify(unit.relative.slice(0, -3));
+    const alternatives = entry.sourceVariants?.filter(source => source.kind === 'string-set' && JSON.stringify(source.relative.slice(0, -3)) === prefix) || [];
+    const signature = JSON.stringify(placeholders(unit.value).tokens);
+    const matching = alternatives.filter(source => JSON.stringify(placeholders(source.value).tokens) === signature);
+    return matching.find(source => source.value === unit.value)?.value ?? matching[0]?.value ?? alternatives[0]?.value ?? entry.source;
+  }
   const exact = entry.sourceVariants?.find(source => samePath(source.relative, unit.relative));
   if (exact) return exact.value;
   const plural = unit.relative.indexOf('plural');
